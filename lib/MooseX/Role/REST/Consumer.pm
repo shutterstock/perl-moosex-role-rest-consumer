@@ -5,8 +5,6 @@ package MooseX::Role::REST::Consumer;
 
 use MooseX::Role::Parameterized;
 use MooseX::Role::REST::Consumer::Response;
-use Shutterstock::Temp::Net::OAuth2::Client;
-use Shutterstock::WWW::Statsd;
 use File::Spec;
 use REST::Consumer;
 use Timed::Logger::Dancer::AdoptPlack;
@@ -52,8 +50,6 @@ parameter query_params_mapping => (
 parameter useragent_class => (
   isa => 'Str'
  );
-
-my $statsd = Shutterstock::WWW::Statsd->new->client;
 
 role {
   my $p = shift;
@@ -110,11 +106,7 @@ role {
     delete @request_headers{@{$p->header_exclude->{$method}}} if $p->header_exclude->{$method};
     $content_type = delete $request_headers{'Content-Type'};
 
-    if($oauth_creds && %{$oauth_creds} && !$params{access_token}) {
-      my $access_token = $class->get_access_token;
-      $params{access_token} = $access_token->access_token;
-    }
-
+    # TOOD, probably shouldn't live here anymore
     if ($params{access_token}) {
       $request_headers{Authorization} = 'Bearer ' . $params{access_token};
     }
@@ -155,10 +147,6 @@ role {
       $consumer->timeout($timeout_override);
     }
 
-    my $service_class_name = 'service.' . lc(ref($class) || $class);
-    $service_class_name    =~ s{::}{.}g;
-    my $timer              = $statsd->timer($service_class_name,1);
-
     my $try = 0;
     while ($try <= $retry) {
       my $is_success;
@@ -174,7 +162,6 @@ role {
       last if $is_success;
    }
 
-    $timer->finish;
     $consumer->timeout($timeout);
     $logger->finish($log_entry, {
       type => $method,
@@ -183,22 +170,7 @@ role {
       request => \%request
     });
 
-    # This is post shutterstock centric and should not live here
-    # But since I can't think of an easier alternative at this time
-    # it will unfortunately be here :(
-    try {
-      $statsd->increment('service.all', 1);
-      $statsd->increment($service_class_name . '.all', 1);
-      if($error) {
-        $statsd->increment('service.error', 1);
-        $statsd->increment($service_class_name . '.error', 1);
-      }
-      if($timeout_error) {
-        $statsd->increment('service.timeout_error', $timeout_error);
-        $statsd->increment($service_class_name . '.timeout_error', $timeout_error);
-        $statsd->increment($service_class_name . ".timeout_error.$timeout_error", 1);
-      }
-    };
+    # TODO Add timing/post hooks
 
     # TODO: It's confusing as to how we handle errors.
     # ie: message should be called "error_message" and
@@ -219,31 +191,6 @@ role {
         $class->call($method, @_);
       }
   }
-
-  #NOTE: You should not need to use this anymore! Use proper user access token instead!
-  #TODO: Get rid of the code.
-  method 'get_access_token' => sub {
-    my ($class, %params) = @_;
-
-    my $client = Shutterstock::Temp::Net::OAuth2::Client->new(
-      $oauth_creds->{client_id},
-      $oauth_creds->{client_secret},
-      site => $oauth_creds->{auth_host},
-      access_token_method => 'POST',
-    )->web_server(grant_type => $oauth_creds->{grant_type});
-
-    #Note: is this an oauth client bug that we have to pass grant_type twice?
-    $params{grant_type} ||= $oauth_creds->{grant_type};
-
-    my $code = delete($params{code});
-
-    my $logger = Timed::Logger::Dancer::AdoptPlack->logger;
-    my $log_entry = $logger->start('REST');
-    my $access_token = $client->get_access_token($code, %params);
-    $logger->finish($log_entry, {type => "access token", path => $resource_path});
-
-    return $access_token;
-  };
 
   method 'request_path' => sub {
     my ($class, $path, $params) = @_;

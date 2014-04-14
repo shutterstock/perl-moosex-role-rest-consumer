@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 17;
+use Test::More tests => 11;
 use Test::Exception;
 use Test::Deep;
 use Test::Easy qw(resub wiretap);
@@ -11,9 +11,6 @@ use Test::MockObject;
 use Time::HiRes;
 use Timed::Logger;
 use Timed::Logger::Dancer::AdoptPlack;
-
-use lib 't/unit/lib';
-use TestHelpers qw(statsd_mockups);
 
 my $rest_consumer_log = Timed::Logger->new;
 my $adopt_plack_new = resub(
@@ -36,7 +33,6 @@ use_ok 'MooseX::Role::REST::Consumer';
 subtest "Standard GET request" => sub {
   plan tests => 5;
 
-  my %statsd_rs = statsd_mockups();
   {
     package FooTestParams;
     use Moose;
@@ -96,11 +92,7 @@ subtest "Standard GET request" => sub {
 };
 
 subtest "GET/POST request" => sub {
-  plan tests => 11;
-
-  my %statsd_rs           = statsd_mockups();
-  my $statsd_increment_rs = $statsd_rs{statsd_increment_rs};
-  my $statsd_timer_rs     = $statsd_rs{statsd_timer_rs};
+  plan tests => 9;
 
   {
     package Foo::Test;
@@ -150,23 +142,6 @@ subtest "GET/POST request" => sub {
     }
   ];
 
-  #we are making two service calls above
-  is_deeply($statsd_increment_rs->named_method_args, [
-    {'service.all' => 1},
-    {'service.foo.test.all' => 1},
-    {'service.all' => 1},
-    {'service.foo.test.all' => 1}
-   ]);
-
-  is_deeply($statsd_timer_rs->named_method_args, [
-    {
-      'service.foo.test' => 1
-    },
-    {
-      'service.foo.test' => 1
-    }
-  ]);
-
 
   #Call get and post again and make sure we create only one REST::Consumer after all
   lives_ok { $obj->get(path => 1) } "Calling get returns something";
@@ -180,10 +155,7 @@ subtest "GET/POST request" => sub {
 };
 
 subtest "Testing a service exception" => sub {
-  plan tests => 5;
-
-  my %statsd_rs           = statsd_mockups();
-  my $statsd_increment_rs = $statsd_rs{statsd_increment_rs};
+  plan tests => 4;
 
   {
     package Foo::Test::Error;
@@ -215,51 +187,6 @@ subtest "Testing a service exception" => sub {
     }
   ];
 
-  is_deeply($statsd_increment_rs->named_method_args, [
-    {'service.all' => 1},
-    {'service.foo.test.error.all' => 1},
-    {'service.error' => 1},
-    {'service.foo.test.error.error' => 1}
-   ]);
-};
-
-subtest "Tests service exception with oauth" => sub {
-  plan tests => 3;
-
-  my %statsd_rs = statsd_mockups();
-  {
-    package FooTestWithOauth;
-    use Moose;
-    with 'MooseX::Role::REST::Consumer' => {
-      service_host => 'session.dev.shuttercorp.net',
-      resource_path => '/sessions',
-      oauth_creds => {
-        base_url => 'http://oauth/route',
-        client_id => 'we-rock',
-        client_secret => 'awesome sauce',
-      },
-    };
-  }
-  my $consumer_get_rs = resub 'REST::Consumer::get', sub { get_mock; die "error"; };
-  my ($obj, $get_res);
-  lives_ok { $obj = FooTestWithOauth->new }
-      "Creating a class that implments MX::R::REST::Consumer with oauth lives!";
-  lives_ok { $get_res = $obj->get(
-    access_token => 'access_token_foo_goodness',
-    path => 1) } "Calling get returns something";
-
-  cmp_deeply $consumer_get_rs->named_method_args, [
-    {
-      headers => [
-        'Authorization',
-        'Bearer access_token_foo_goodness'
-       ],
-      content_type => 'application/json',
-      params => {},
-      content => undef,
-      path => '/sessions/1'
-    }
-  ];
 };
 
 #check that requests from above were logged
@@ -268,135 +195,15 @@ subtest "Testing logging" => sub {
 
   is(0 + keys(%{$rest_consumer_log->log}), 1, 'got only 1 type on logs');
   my $log = $rest_consumer_log->log->{'REST'};
-  is(0 + @$log, 7, 'got 7 log entries');
+  is(0 + @$log, 6, 'got 6 log entries');
   ok(List::MoreUtils::all(sub { $_->elapsed > 0 }, @$log), 'all elapsed times are positive');
   ok(List::MoreUtils::all(sub { $_->started > 0 }, @$log), 'all started times are positive');
   ok(List::MoreUtils::all(sub { $_->bucket eq 'REST' }, @$log), 'all have expected type');
   ok(List::MoreUtils::all(sub { defined($_->data) && $_->data->{path} }, @$log), 'all have data with path');
 };
 
-subtest "Verify get_access_token logic" => sub {
-  plan tests => 6;
-
-  my @client_calls;
-  my $client_mock = Test::MockObject->new;
-  $client_mock->mock('get_access_token', sub {
-    my ($self) = shift;
-    push(@client_calls, \@_);
-    return Shutterstock::Temp::Net::OAuth2::AccessToken->new(access_token => 'super_access_token');
-  });
-
-  my @server_calls;
-  my $server_mock = Test::MockObject->new;
-  $server_mock->mock('web_server', sub {
-    my ($self) = shift;
-    push(@server_calls, \@_);
-    return $client_mock;
-  });
-
-  my $oauth2_client_rs = resub 'Shutterstock::Temp::Net::OAuth2::Client::new' => sub { $server_mock };
-
-  {
-    package FooTestWithOauthAutomaticToken;
-    use Moose;
-    with 'MooseX::Role::REST::Consumer' => {
-      service_host => 'session.dev.shuttercorp.net',
-      resource_path => '/sessions',
-      oauth_creds => {
-        auth_host => 'http://oauth.host',
-        client_id => 'we-rock',
-        client_secret => 'awesome sauce',
-        grant_type => 'super-grant'
-      },
-    };
-  }
-
-  my $consumer_get_rs = resub 'REST::Consumer::get', sub {};
-  my ($obj, $get_res);
-  lives_ok { $obj = FooTestWithOauthAutomaticToken->new }
-      "Creating a class that implments MX::R::REST::Consumer with oauth lives!";
-  lives_ok { $get_res = $obj->get(path => 1) } "Calling get returns something";
-
-  cmp_deeply($consumer_get_rs->named_method_args, [{
-    path => '/sessions/1',
-    headers => [
-      'Authorization',
-      'Bearer super_access_token'
-     ],
-    content_type => 'application/json',
-    params => {},
-    content => undef
-   }], "we called the service with a Bearer header");
-
-  cmp_deeply($oauth2_client_rs->method_args, [[
-    'we-rock', 'awesome sauce',
-    site => 'http://oauth.host', access_token_method => 'POST'
-   ]], 'call to constructor got expected params');
-  cmp_deeply(\@server_calls, [[grant_type => 'super-grant']],
-    'call to web_server got expected params');
-  cmp_deeply(\@client_calls, [[undef, grant_type => 'super-grant']],
-    'call to client->get_access_token got expected params');
-};
-
-subtest "Verify that get_access_token processes params" => sub {
-  plan tests => 7;
-
-  my @client_calls;
-  my $client_mock = Test::MockObject->new;
-  $client_mock->mock('get_access_token', sub {
-    my ($self) = shift;
-    push(@client_calls, \@_);
-    return Shutterstock::Temp::Net::OAuth2::AccessToken->new(access_token => 'super_access_token');
-  });
-
-  my @server_calls;
-  my $server_mock = Test::MockObject->new;
-  $server_mock->mock('web_server', sub {
-    my ($self) = shift;
-    push(@server_calls, \@_);
-    return $client_mock;
-  });
-
-  my $oauth2_client_rs = resub 'Shutterstock::Temp::Net::OAuth2::Client::new' => sub { $server_mock };
-
-  {
-    package FooTestGetAccessToken;
-    use Moose;
-    with 'MooseX::Role::REST::Consumer' => {
-      service_host => 'session.dev.shuttercorp.net',
-      resource_path => '/sessions',
-      oauth_creds => {
-        auth_host => 'http://oauth.host',
-        client_id => 'we-rock',
-        client_secret => 'awesome sauce',
-        grant_type => 'super-grant'
-      },
-    };
-  }
-
-  my ($obj, $get_access_token_res);
-  lives_ok { $obj = FooTestGetAccessToken->new }
-      "Creating a class that implments MX::R::REST::Consumer with oauth lives!";
-  lives_ok {
-    $get_access_token_res = $obj->get_access_token(scope => 'super scope', code => 'super code')
-  } "Calling get_get_access_token returns something";
-
-  isa_ok($get_access_token_res, 'Shutterstock::Temp::Net::OAuth2::AccessToken');
-  is($get_access_token_res->access_token, 'super_access_token');
-
-  cmp_deeply($oauth2_client_rs->method_args, [[
-    'we-rock', 'awesome sauce',
-    site => 'http://oauth.host', access_token_method => 'POST'
-   ]], 'call to constructor got expected params');
-  cmp_deeply(\@server_calls, [[grant_type => 'super-grant']],
-    'call to web_server got expected params');
-  cmp_deeply(\@client_calls, [['super code', grant_type => 'super-grant', scope => 'super scope']],
-    'call to client->get_access_token got expected params');
-};
-
 subtest "We should be able to set custom headers" => sub {
   plan tests => 3;
-  my %statsd_rs = statsd_mockups();
   {
     package CustomHeadersTest;
     use Moose;
@@ -435,7 +242,6 @@ subtest "We should be able to set custom headers" => sub {
 
 subtest "We should be able to use custom user agent" => sub {
   plan tests => 4;
-  my %statsd_rs = statsd_mockups();
   {
     package CustomUserAgentTest;
     use Moose;
@@ -473,10 +279,7 @@ subtest "We should be able to use custom user agent" => sub {
 };
 
 subtest "Testing a service exception with timeout_retry set" => sub {
-  plan tests => 5;
-
-  my %statsd_rs           = statsd_mockups();
-  my $statsd_increment_rs = $statsd_rs{statsd_increment_rs};
+  plan tests => 4;
 
   {
     package Foo::Test::ErrorWithTimeout;
@@ -524,54 +327,6 @@ subtest "Testing a service exception with timeout_retry set" => sub {
     }
   ];
 
-  is_deeply($statsd_increment_rs->named_method_args, [
-    { 'service.all' => 1 },
-    { 'service.foo.test.errorwithtimeout.all' => 1 },
-    { 'service.error' => 1 },
-    { 'service.foo.test.errorwithtimeout.error' => 1 },
-    { 'service.timeout_error' => 3 },
-    { 'service.foo.test.errorwithtimeout.timeout_error' => 3 },
-    { 'service.foo.test.errorwithtimeout.timeout_error.3' => 1 },
-   ]);
-};
-
-subtest "Tests service exception with oauth" => sub {
-  plan tests => 3;
-
-  my %statsd_rs = statsd_mockups();
-  {
-    package FooTestWithOauth;
-    use Moose;
-    with 'MooseX::Role::REST::Consumer' => {
-      service_host => 'session.dev.shuttercorp.net',
-      resource_path => '/sessions',
-      oauth_creds => {
-        base_url => 'http://oauth/route',
-        client_id => 'we-rock',
-        client_secret => 'awesome sauce',
-      },
-    };
-  }
-  my $consumer_get_rs = resub 'REST::Consumer::get', sub { get_mock; die "error"; };
-  my ($obj, $get_res);
-  lives_ok { $obj = FooTestWithOauth->new }
-      "Creating a class that implments MX::R::REST::Consumer with oauth lives!";
-  lives_ok { $get_res = $obj->get(
-    access_token => 'access_token_foo_goodness',
-    path => 1) } "Calling get returns something";
-
-  cmp_deeply $consumer_get_rs->named_method_args, [
-    {
-      headers => [
-        'Authorization',
-        'Bearer access_token_foo_goodness'
-       ],
-      content_type => 'application/json',
-      params => {},
-      content => undef,
-      path => '/sessions/1'
-    }
-  ];
 };
 
 #check that requests from above were logged
@@ -580,135 +335,15 @@ subtest "Testing logging" => sub {
 
   is(0 + keys(%{$rest_consumer_log->log}), 1, 'got only 1 type on logs');
   my $log = $rest_consumer_log->log->{'REST'};
-  is(0 + @$log, 14, 'got 14 log entries');
+  is(0 + @$log, 9, 'got 9 log entries');
   ok(List::MoreUtils::all(sub { $_->elapsed > 0 }, @$log), 'all elapsed times are positive');
   ok(List::MoreUtils::all(sub { $_->started > 0 }, @$log), 'all started times are positive');
   ok(List::MoreUtils::all(sub { $_->bucket eq 'REST' }, @$log), 'all have expected type');
   ok(List::MoreUtils::all(sub { defined($_->data) && $_->data->{path} }, @$log), 'all have data with path');
 };
 
-subtest "Verify get_access_token logic" => sub {
-  plan tests => 6;
-
-  my @client_calls;
-  my $client_mock = Test::MockObject->new;
-  $client_mock->mock('get_access_token', sub {
-    my ($self) = shift;
-    push(@client_calls, \@_);
-    return Shutterstock::Temp::Net::OAuth2::AccessToken->new(access_token => 'super_access_token');
-  });
-
-  my @server_calls;
-  my $server_mock = Test::MockObject->new;
-  $server_mock->mock('web_server', sub {
-    my ($self) = shift;
-    push(@server_calls, \@_);
-    return $client_mock;
-  });
-
-  my $oauth2_client_rs = resub 'Shutterstock::Temp::Net::OAuth2::Client::new' => sub { $server_mock };
-
-  {
-    package FooTestWithOauthAutomaticToken;
-    use Moose;
-    with 'MooseX::Role::REST::Consumer' => {
-      service_host => 'session.dev.shuttercorp.net',
-      resource_path => '/sessions',
-      oauth_creds => {
-        auth_host => 'http://oauth.host',
-        client_id => 'we-rock',
-        client_secret => 'awesome sauce',
-        grant_type => 'super-grant'
-      },
-    };
-  }
-
-  my $consumer_get_rs = resub 'REST::Consumer::get', sub {};
-  my ($obj, $get_res);
-  lives_ok { $obj = FooTestWithOauthAutomaticToken->new }
-      "Creating a class that implments MX::R::REST::Consumer with oauth lives!";
-  lives_ok { $get_res = $obj->get(path => 1) } "Calling get returns something";
-
-  cmp_deeply($consumer_get_rs->named_method_args, [{
-    path => '/sessions/1',
-    headers => [
-      'Authorization',
-      'Bearer super_access_token'
-     ],
-    content_type => 'application/json',
-    params => {},
-    content => undef
-   }], "we called the service with a Bearer header");
-
-  cmp_deeply($oauth2_client_rs->method_args, [[
-    'we-rock', 'awesome sauce',
-    site => 'http://oauth.host', access_token_method => 'POST'
-   ]], 'call to constructor got expected params');
-  cmp_deeply(\@server_calls, [[grant_type => 'super-grant']],
-    'call to web_server got expected params');
-  cmp_deeply(\@client_calls, [[undef, grant_type => 'super-grant']],
-    'call to client->get_access_token got expected params');
-};
-
-subtest "Verify that get_access_token processes params" => sub {
-  plan tests => 7;
-
-  my @client_calls;
-  my $client_mock = Test::MockObject->new;
-  $client_mock->mock('get_access_token', sub {
-    my ($self) = shift;
-    push(@client_calls, \@_);
-    return Shutterstock::Temp::Net::OAuth2::AccessToken->new(access_token => 'super_access_token');
-  });
-
-  my @server_calls;
-  my $server_mock = Test::MockObject->new;
-  $server_mock->mock('web_server', sub {
-    my ($self) = shift;
-    push(@server_calls, \@_);
-    return $client_mock;
-  });
-
-  my $oauth2_client_rs = resub 'Shutterstock::Temp::Net::OAuth2::Client::new' => sub { $server_mock };
-
-  {
-    package FooTestGetAccessToken;
-    use Moose;
-    with 'MooseX::Role::REST::Consumer' => {
-      service_host => 'session.dev.shuttercorp.net',
-      resource_path => '/sessions',
-      oauth_creds => {
-        auth_host => 'http://oauth.host',
-        client_id => 'we-rock',
-        client_secret => 'awesome sauce',
-        grant_type => 'super-grant'
-      },
-    };
-  }
-
-  my ($obj, $get_access_token_res);
-  lives_ok { $obj = FooTestGetAccessToken->new }
-      "Creating a class that implments MX::R::REST::Consumer with oauth lives!";
-  lives_ok {
-    $get_access_token_res = $obj->get_access_token(scope => 'super scope', code => 'super code')
-  } "Calling get_get_access_token returns something";
-
-  isa_ok($get_access_token_res, 'Shutterstock::Temp::Net::OAuth2::AccessToken');
-  is($get_access_token_res->access_token, 'super_access_token');
-
-  cmp_deeply($oauth2_client_rs->method_args, [[
-    'we-rock', 'awesome sauce',
-    site => 'http://oauth.host', access_token_method => 'POST'
-   ]], 'call to constructor got expected params');
-  cmp_deeply(\@server_calls, [[grant_type => 'super-grant']],
-    'call to web_server got expected params');
-  cmp_deeply(\@client_calls, [['super code', grant_type => 'super-grant', scope => 'super scope']],
-    'call to client->get_access_token got expected params');
-};
-
 subtest "We should be able to set custom headers" => sub {
   plan tests => 3;
-  my %statsd_rs = statsd_mockups();
   {
     package CustomHeadersTest;
     use Moose;
@@ -747,7 +382,6 @@ subtest "We should be able to set custom headers" => sub {
 
 subtest "overriding a timeout" => sub {
   plan tests => 5;
-  my %statsd_rs = statsd_mockups();
   {
     package OverrideTimeout;
     use Moose;
