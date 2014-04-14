@@ -269,6 +269,8 @@ L<REST::Consumer>, L<MooseX::Role::Parameterized>, L<Moose>
 
 =head1 AUTHOR
 
+Webstack Team at Shutterstock (l33t perl group at Shutterstock Images)
+
 =head1 COPYRIGHT AND LICENSE
 
  This software is copyright (c) 2013 by Shutterstock Inc..
