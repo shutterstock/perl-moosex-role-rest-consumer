@@ -29,19 +29,63 @@ subtest "Standard GET request" => sub {
 
   subtest "Some basic tests to make sure that parameter replacing is working as expected" => sub {
     plan tests => 11;
-    is($obj->request_path('/:id/', { id => 123 }), '/123/');
-    is($obj->request_path('/:id', { id => 123 }), '/123');
-    is($obj->request_path('/:{id}/', { id => 123 }), '/123/');
-    is($obj->request_path('/:{id}', { id => 123 }), '/123');
-    is($obj->request_path('/aaa/:{id}.json', { id => 123 }), '/aaa/123.json');
-    is($obj->request_path('/aaa/:{id.id}.json', { "id.id" => 123 }), '/aaa/123.json');
-    is($obj->request_path('/:id/:id_new/', { id => 123, id_new => 321 }), '/123/321/');
-    is($obj->request_path('/:id:id_new/', { id => 123, id_new => 321 }), '/123321/');
-    is($obj->request_path('/:id:id_new', { id => 123, id_new => 321 }), '/123321');
-    throws_ok { $obj->request_path('/:id/:id_new/', { id => 123 }) } qr/Found parameter id_new/,
-        'Die if parameter is not found';
-    is($obj->request_path('/:id:id_new/', { id => ":id_new", id_new => ":id" }), '/%3Aid_new%3Aid/',
-       'make sure we do not subsitute in values');
+
+    is $obj->request_path(
+        resource_path => '/:id/',
+        route_params => { id => 123 }
+    ), '/123/';
+
+    is $obj->request_path(
+      resource_path => '/:id',
+      route_params => { id => 123 }
+    ), '/123';
+
+    is $obj->request_path(
+      resource_path => '/:{id}/',
+      route_params  => { id => 123 },
+    ),'/123/';
+
+    is $obj->request_path(
+      resource_path => '/:{id}',
+      route_params  => { id => 123 }
+    ), '/123';
+
+    is $obj->request_path(
+      resource_path => '/aaa/:{id}.json',
+      route_params  => { id => 123 }
+    ), '/aaa/123.json';
+
+    is $obj->request_path(
+      resource_path => '/aaa/:{id.id}.json',
+      route_params  => { "id.id" => 123 }
+    ), '/aaa/123.json';
+
+    is $obj->request_path(
+      resource_path => '/:id/:id_new/',
+      route_params  => { id => 123, id_new => 321 }
+    ), '/123/321/';
+
+    is $obj->request_path(
+      resource_path => '/:id:id_new/',
+      route_params  => { id => 123, id_new => 321 }
+    ), '/123321/';
+
+    is $obj->request_path(
+      resource_path => '/:id:id_new',
+      route_params => { id => 123, id_new => 321 }
+    ), '/123321';
+
+    throws_ok {
+      $obj->request_path(
+        resource_path => '/:id/:id_new/',
+        route_params  => { id => 123 }
+      ) 
+    } qr/Found parameter id_new/, 'Die if parameter is not found';
+
+    is $obj->request_path(
+        resource_path => '/:id:id_new/',
+        route_params  => { id => ":id_new", id_new => ":id" }
+      ), '/%3Aid_new%3Aid/', 'make sure we do not subsitute in values';
   };
 
   lives_ok {

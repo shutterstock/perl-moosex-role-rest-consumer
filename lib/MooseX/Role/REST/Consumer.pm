@@ -7,7 +7,6 @@ use MooseX::Role::Parameterized;
 use MooseX::Role::REST::Consumer::Response;
 use File::Spec;
 use REST::Consumer;
-use Timed::Logger::Dancer::AdoptPlack;
 use Try::Tiny;
 use URI::Escape;
 use Module::Load;
@@ -17,35 +16,35 @@ our $VERSION = '0.001';
 my @HTTP_METHODS = qw(get put post delete);
 
 parameter service_host => (
-  lazy => 1,
-  default => ''
+  lazy    => 1,
+  default => '',
 );
 
 parameter service_port => ();
 
 parameter resource_path => (
-  lazy => 1,
-  default => sub { undef }
+  lazy    => 1,
+  default => sub { undef },
 );
 
 parameter content_type => (
-  isa => 'Str',
+  isa      => 'Str',
   required => 1,
-  default => 'application/json',
+  default  => 'application/json',
 );
 
 parameter header_exclude => (
-  isa => 'HashRef',
-  default => sub {{}}
+  isa     => 'HashRef',
+  default => sub {{}},
 );
 
 parameter retry   => (
   required => 1,
-  default  => 0
+  default  => 0,
 );
 
 parameter timeout => (
-  default => 1 
+  default => 1,
 );
 
 parameter query_params_mapping => (
@@ -54,7 +53,7 @@ parameter query_params_mapping => (
 );
 
 parameter useragent_class => (
-  isa => 'Str'
+  isa => 'Str',
 );
 
 role {
@@ -105,36 +104,32 @@ role {
   method 'call' => sub {
     my ($class, $method, %params) = @_;
 
-    my %request_headers = ($params{headers} ? %{delete $params{headers}} : ());
-    # Strange mutation going on here:
-    # 1. First we set the content_type in the headers if we have one set in parameter definition
-    # 2. However, we won't override anything that is passed explicitly into a method call Class->post
-    # 3. Next we delete anything that needs to be removed from the header
-    # 4. Finally we explicltly pull out content-type from the request_headers
-    #    to make REST::Consumer happy
-    $request_headers{'Content-Type'} = $p->content_type unless $request_headers{'Content-Type'};
-    delete @request_headers{@{$p->header_exclude->{$method}}} if $p->header_exclude->{$method};
+    my %request_headers = $class->request_headers(
+      header_exclude => $p->header_exclude,
+      headers        => $params{headers},
+      content_type   => $p->content_type,
+      method         => $method,
+    );
+
     $content_type = delete $request_headers{'Content-Type'};
 
-    my %query_params = $class->query_params(params => $params{params}, query_params_mapping => $query_params_mapping);
+    my %query_params = $class->query_params(
+      params               => $params{params},
+      query_params_mapping => $query_params_mapping,
+    );
 
-    my @path = (defined $resource_path ? $resource_path : ());
-    if($params{path}) {
-      if(ref($params{path}) eq 'ARRAY') {
-        push(@path, @{$params{path}});
-      } else {
-        push(@path, $params{path});
-      }
-    }
-    my $path = File::Spec->catfile(@path);
-    $path = $class->request_path($path, $params{route_params} );
+    my $path = $class->request_path(
+      resource_path => $resource_path,
+      route_params  => delete $params{route_params},
+      path          => delete $params{path},
+    );
 
     my ($data, $error, $timeout_error) = (undef, '', 0);
-
 
     my %request = (
       params       => \%query_params,
       content      => $params{content},
+      path         => $path,
       content_type => $content_type,
       headers      => ( %request_headers ? [ %request_headers ] : undef ),
     );
@@ -145,7 +140,7 @@ role {
     #  path      => $path,
     #  response  => $data,
     #  request   => \%request
-    #) 
+    #);
 
     my $consumer = $class->consumer; #we want same instance throughout the whole process
 
@@ -158,7 +153,6 @@ role {
       my $is_success;
       try {
         $try++;
-        $request{path} = $path;
         $data          = $consumer->$method(%request);
         $is_success    = 1;
       } catch {
@@ -198,8 +192,35 @@ role {
       }
   }
 
+  method 'request_headers' => sub {
+      my ($class, %params) = @_;
+      my %request_headers = ($params{headers} ? %{delete $params{headers}} : ());
+      # Strange mutation going on here:
+      # 1. First we set the content_type in the headers if we have one set in parameter definition
+      # 2. However, we won't override anything that is passed explicitly into a method call Class->post
+      # 3. Next we delete anything that needs to be removed from the header
+      # 4. Finally we explicltly pull out content-type from the request_headers
+      #    to make REST::Consumer happy
+      $request_headers{'Content-Type'} = $params{content_type} unless $request_headers{'Content-Type'};
+      delete @request_headers{@{$params{header_exclude}->{$params{method}}}} if $params{header_exclude}->{$params{method}};
+      return %request_headers;
+  };
   method 'request_path' => sub {
-    my ($class, $path, $params) = @_;
+    my ($class, %params) = @_;
+
+    my $resource_path = $params{resource_path};
+    my $route_params  = $params{route_params};
+    my $params_path   = $params{path};
+    my @path          = (defined $resource_path ? $resource_path : ());
+
+    if($params_path) {
+      if(ref($params_path) eq 'ARRAY') {
+        push(@path, @$params_path);
+      } else {
+        push(@path, $params_path);
+      }
+    }
+    my $path = File::Spec->catfile(@path) . ( $resource_path =~ m{/$} ? '/' : '');
     #We support two ways of substituting params here:
     # /:param/ - name has to have '/' or end of string after it
     # /has_:{param}_value - surround param name with '{}'
@@ -211,8 +232,8 @@ role {
       $result .= $1;
       if($2) {
         my $name = $3 || $4; # only one of them could match
-        if(exists $params->{$name}) {
-          $result .= URI::Escape::uri_escape_utf8($params->{$name} // '');
+        if(exists $route_params->{$name}) {
+          $result .= URI::Escape::uri_escape_utf8($route_params->{$name} // '');
         }
         else {
           die "Found parameter $name in path but it wasn't set in parameters hash";
@@ -267,23 +288,49 @@ __END__
   use Moose;
   with 'MooseX::Role::REST::Consumer' => {
     service_host => 'somewhere.over.the.rainbow',
-    resource_path => '/path/to/my/resource'
+    resource_path => '/path/to/my/resource/:id'
   };
+
+  my $object = Foo->get(route_params => {id => 1});
+
+  if ($object->is_success) {
+   print $object->data->{something_that_came_back};
+  }
 
 =head1 DESCRIPTION
 
-  At Shutterstock we love REST and we take it so seriously that we think our code should be restifully
+  At Shutterstock we love REST and we take it so seriously that we think our code should be RESTfully
   lazy. Now one can have a Moose model without needing to deal with all the marshaling details.
 
 =head1 METHODS
 
-=head2 get( $str )
+=head2 get( route_params => {...}, params => {...} )
 
- Will use REST::Consumer::get to lookup a resource by a supplied id.
+ Will use REST::Consumer::get to lookup a resource by supplied resource_path and substitution of route_params
 
-=head2 post( $str, $hashref )
+=head2 post( route_params => {...}, content => '...' )
 
  Will perform a POST request with REST::Consumer::post. The data will the Content-Type of application/json by default.
+
+=head2 Other supported HTTP methods: DELETE and PUT: delete(%params) and put(%params)
+
+=head1 Supported Parameters
+
+=head2 route_params => {...}
+
+ Will be substituted via what is defined in the package route defition.
+
+=head2 params => {...}
+
+ Passed into L<REST::Consumer> as a set of key value query parameters.
+
+=head2 headers => {...}
+
+  HTTP request headers. 
+
+=head2 timeout => ''
+
+  Timeout override per request
 
 =head1 LICENSE
 
@@ -295,11 +342,11 @@ L<REST::Consumer>, L<MooseX::Role::Parameterized>, L<Moose>
 
 =head1 AUTHOR
 
-Webstack Team at Shutterstock (l33t perl group at Shutterstock Images)
+Webstack Team at Shutterstock (Belden Lyman, Nikolay Martynov, Vishal Kajjam, and Logan Bell)
 
 =head1 COPYRIGHT AND LICENSE
 
- This software is copyright (c) 2013 by Shutterstock Inc..
+ This software is copyright (c) 2014 by Shutterstock Inc..
 
  This is free software; you can redistribute it and/or modify it under
  the same terms as the Perl 5 programming language system itself.
