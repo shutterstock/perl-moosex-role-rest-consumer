@@ -13,7 +13,9 @@ use URI::Escape;
 use Module::Load;
 
 our $VERSION = '0.001';
-my @METHODS = qw(get put post delete);
+
+my @HTTP_METHODS = qw(get put post delete);
+
 parameter service_host => (
   lazy => 1,
   default => ''
@@ -32,37 +34,40 @@ parameter content_type => (
   default => 'application/json',
 );
 
-parameter header_exclude => ( isa => 'HashRef', default => sub {{}} );
-
-parameter retry => ( required => 1, default => 0 );
-parameter timeout => ( default => 1 );
-
-parameter oauth_creds => (
+parameter header_exclude => (
   isa => 'HashRef',
-  default => sub {{}},
+  default => sub {{}}
+);
+
+parameter retry   => (
+  required => 1,
+  default  => 0
+);
+
+parameter timeout => (
+  default => 1 
 );
 
 parameter query_params_mapping => (
-  isa => 'HashRef',
+  isa     => 'HashRef',
   default => sub {{}},
 );
 
 parameter useragent_class => (
   isa => 'Str'
- );
+);
 
 role {
   my $p = shift;
 
-  my $service_host  = $p->service_host;
-  my $service_port  = $p->service_port;
-  my $resource_path = $p->resource_path;
-  my $content_type  = $p->content_type;
-  my $retry         = $p->retry;
-  my $timeout       = $p->timeout;
-  my $oauth_creds   = $p->oauth_creds;
+  my $service_host         = $p->service_host;
+  my $service_port         = $p->service_port;
+  my $resource_path        = $p->resource_path;
+  my $content_type         = $p->content_type;
+  my $retry                = $p->retry;
+  my $timeout              = $p->timeout;
   my $query_params_mapping = $p->query_params_mapping;
-  my $useragent_class = $p->useragent_class;
+  my $useragent_class      = $p->useragent_class;
 
   #Note: since this is a parametrized role then only one class will be closing
   #over this variable and this instance only depends on role parameters
@@ -78,16 +83,21 @@ role {
     return $consumer_instance if($consumer_instance);
 
     my $user_agent;
+
     if($useragent_class) {
       Module::Load::load($useragent_class);
       $user_agent = $useragent_class->new;
     };
-    my $client = REST::Consumer->new(host => $service_host,
-                                     timeout => $timeout,
-                                     ($user_agent ? (ua => $user_agent) : ()),
-                                     ($service_port ? (port => $service_port) : ()));
+
+    my $client = REST::Consumer->new(
+      host    => $service_host,
+      timeout => $timeout,
+      ($user_agent ? (ua => $user_agent) : ()),
+      ($service_port ? (port => $service_port) : ())
+    );
 
     $client->user_agent->use_eval(0);
+
     $consumer_instance = $client;
     return $client;
   };
@@ -106,18 +116,7 @@ role {
     delete @request_headers{@{$p->header_exclude->{$method}}} if $p->header_exclude->{$method};
     $content_type = delete $request_headers{'Content-Type'};
 
-    # TOOD, probably shouldn't live here anymore
-    if ($params{access_token}) {
-      $request_headers{Authorization} = 'Bearer ' . $params{access_token};
-    }
-
-    my %query_params;
-    if($params{params}) {
-      while(my ($name, $url_name) = each(%$query_params_mapping)) {
-        # Check for method canness here probably
-        $query_params{$url_name} = delete($params{params}->{$name});
-      }
-    }
+    my %query_params = $class->query_params(params => $params{params}, query_params_mapping => $query_params_mapping);
 
     my @path = (defined $resource_path ? $resource_path : ());
     if($params{path}) {
@@ -128,18 +127,25 @@ role {
       }
     }
     my $path = File::Spec->catfile(@path);
-    $path = $class->request_path($path, $params{params}) if($params{params});
+    $path = $class->request_path($path, $params{route_params} );
 
     my ($data, $error, $timeout_error) = (undef, '', 0);
 
-    my $logger = Timed::Logger::Dancer::AdoptPlack->logger;
-    my $log_entry = $logger->start('REST');
+
     my %request = (
       params       => \%query_params,
       content      => $params{content},
       content_type => $content_type,
       headers      => ( %request_headers ? [ %request_headers ] : undef ),
-     );
+    );
+
+    #my $logger = $class->get_logger
+    #$logger->start_request(
+    #  type      => $method,
+    #  path      => $path,
+    #  response  => $data,
+    #  request   => \%request
+    #) 
 
     my $consumer = $class->consumer; #we want same instance throughout the whole process
 
@@ -153,8 +159,8 @@ role {
       try {
         $try++;
         $request{path} = $path;
-        $data = $consumer->$method(%request);
-        $is_success = 1;
+        $data          = $consumer->$method(%request);
+        $is_success    = 1;
       } catch {
         $error = $_;
         $timeout_error++ if $error =~ /read timeout/;
@@ -163,14 +169,13 @@ role {
    }
 
     $consumer->timeout($timeout);
-    $logger->finish($log_entry, {
-      type => $method,
-      path => $path,
-      response => $data,
-      request => \%request
-    });
 
-    # TODO Add timing/post hooks
+    #$logger->finish($log_entry, {
+    #  type      => $method,
+    #  path      => $path,
+    #  response  => $data,
+    #  request   => \%request
+    #});
 
     # TODO: It's confusing as to how we handle errors.
     # ie: message should be called "error_message" and
@@ -184,8 +189,9 @@ role {
       response     => $consumer->last_response,
     );
   };
+
   # Note: REST::Consumer doesn't support OPTIONS/PATCH
-  foreach my $method ( @METHODS ) {
+  for my $method ( @HTTP_METHODS ) {
       method $method => sub {
         my $class = shift;
         $class->call($method, @_);
@@ -217,6 +223,26 @@ role {
       $result .= $1;
     }
     return $result;
+  };
+
+  method 'query_params' => sub {
+    my ($class, %params) = @_;
+
+    my %query_params;
+    if($params{params}) {
+      # TODO: I don't think having this strict mapping in place
+      # makes a lot of sense. Ideally we should be able to pass in
+      # any query params that we want
+      if ( $params{query_params_mapping} ) {
+        while(my ($name, $url_name) = each(%{$params{query_params_mapping}})) {
+          # Check for method canness here probably
+          $query_params{$url_name} = delete($params{params}->{$name});
+        }
+      } else {
+        %query_params = %{$params{params}};
+      }
+    }
+    return %query_params;
   };
 
   method 'parameters' => sub { $p };

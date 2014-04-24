@@ -2,32 +2,10 @@
 use strict;
 use warnings;
 
-use Test::More tests => 11;
+use Test::More tests => 9;
 use Test::Exception;
 use Test::Deep;
 use Test::Easy qw(resub wiretap);
-use List::MoreUtils;
-use Test::MockObject;
-use Time::HiRes;
-use Timed::Logger;
-use Timed::Logger::Dancer::AdoptPlack;
-
-my $rest_consumer_log = Timed::Logger->new;
-my $adopt_plack_new = resub(
-  'Timed::Logger::Dancer::AdoptPlack::logger',
-  sub { return $rest_consumer_log }
- );
-
-sub get_mock {
-    #Need to sleep for a moment to make sure that logger sees positive time
-    Time::HiRes::sleep(0.25);
-    return
-}
-sub post_mock {
-    #Need to sleep for a moment to make sure that logger sees positive time
-    Time::HiRes::sleep(0.25);
-    return 'stuff'
-}
 
 use_ok 'MooseX::Role::REST::Consumer';
 subtest "Standard GET request" => sub {
@@ -43,12 +21,11 @@ subtest "Standard GET request" => sub {
     };
   }
 
-  my $consumer_get_rs = resub 'REST::Consumer::get', &get_mock;
+  my $consumer_get_rs = resub 'REST::Consumer::get';
   my $consumer_new_wt = wiretap 'REST::Consumer::new';
 
-  my ($obj, $get_req, $post_req);
-  lives_ok { $obj = FooTestParams->new }
-      "Creating a class that implments MX::R::REST::Consumer lives!";
+  my $obj;
+  lives_ok { $obj = FooTestParams->new } "Creating a class that implments MX::R::REST::Consumer lives!";
 
   subtest "Some basic tests to make sure that parameter replacing is working as expected" => sub {
     plan tests => 11;
@@ -67,15 +44,24 @@ subtest "Standard GET request" => sub {
        'make sure we do not subsitute in values');
   };
 
-  lives_ok { $get_req = $obj->get(params => {
-    id => 123, param => 'param_value', last_param => 'last/param/value',
-    query_id => 1
-   }, content => 'content') } "Calling get returns something";
+  lives_ok {
+    $obj->get(
+      params => {
+        query_id => 1
+      },
+      route_params => {
+        id => 123,
+        param => 'param_value',
+        last_param => 'last/param/value',
+      },
+      content => 'content'
+    ) 
+  } "Calling get returns something";
 
   cmp_deeply($consumer_new_wt->named_method_args, [{
     timeout => 1,
     host => 'session.dev.shuttercorp.net'
-   }]);
+  }]);
 
   cmp_deeply $consumer_get_rs->named_method_args,[
     {
@@ -105,8 +91,8 @@ subtest "GET/POST request" => sub {
   }
 
   my $consumer_new_wt = wiretap 'REST::Consumer::new';
-  my $consumer_get_rs = resub 'REST::Consumer::get', \&get_mock;
-  my $consumer_post_rs = resub 'REST::Consumer::post', \&post_mock;
+  my $consumer_get_rs = resub 'REST::Consumer::get';
+  my $consumer_post_rs = resub 'REST::Consumer::post';
 
   my ($obj, $get_req, $post_req);
 
@@ -187,19 +173,6 @@ subtest "Testing a service exception" => sub {
     }
   ];
 
-};
-
-#check that requests from above were logged
-subtest "Testing logging" => sub {
-  plan tests => 6;
-
-  is(0 + keys(%{$rest_consumer_log->log}), 1, 'got only 1 type on logs');
-  my $log = $rest_consumer_log->log->{'REST'};
-  is(0 + @$log, 6, 'got 6 log entries');
-  ok(List::MoreUtils::all(sub { $_->elapsed > 0 }, @$log), 'all elapsed times are positive');
-  ok(List::MoreUtils::all(sub { $_->started > 0 }, @$log), 'all started times are positive');
-  ok(List::MoreUtils::all(sub { $_->bucket eq 'REST' }, @$log), 'all have expected type');
-  ok(List::MoreUtils::all(sub { defined($_->data) && $_->data->{path} }, @$log), 'all have data with path');
 };
 
 subtest "We should be able to set custom headers" => sub {
@@ -327,19 +300,6 @@ subtest "Testing a service exception with timeout_retry set" => sub {
     }
   ];
 
-};
-
-#check that requests from above were logged
-subtest "Testing logging" => sub {
-  plan tests => 6;
-
-  is(0 + keys(%{$rest_consumer_log->log}), 1, 'got only 1 type on logs');
-  my $log = $rest_consumer_log->log->{'REST'};
-  is(0 + @$log, 9, 'got 9 log entries');
-  ok(List::MoreUtils::all(sub { $_->elapsed > 0 }, @$log), 'all elapsed times are positive');
-  ok(List::MoreUtils::all(sub { $_->started > 0 }, @$log), 'all started times are positive');
-  ok(List::MoreUtils::all(sub { $_->bucket eq 'REST' }, @$log), 'all have expected type');
-  ok(List::MoreUtils::all(sub { defined($_->data) && $_->data->{path} }, @$log), 'all have data with path');
 };
 
 subtest "We should be able to set custom headers" => sub {
