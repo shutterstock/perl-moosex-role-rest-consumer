@@ -344,7 +344,8 @@ __END__
 
 =item useragent_class
 
-  Experimental way of overriding REST::Consumers useragent. Right now it uses L<LWP::UserAgent>
+  Experimental way of overriding REST::Consumers useragent. Right now
+  it uses L<LWP::UserAgent>
 
 =back
 
