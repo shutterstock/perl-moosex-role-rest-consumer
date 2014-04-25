@@ -175,12 +175,12 @@ role {
     # ie: message should be called "error_message" and
     # we should inspect the response content for possible error messages
     return MooseX::Role::REST::Consumer::Response->new(
-      data         => $data,
-      is_success   => !$error,
-      message      => "$error",
-      request      => $consumer->last_request,
-      content_type => $content_type,
-      response     => $consumer->last_response,
+      data          => $data,
+      is_success    => !$error,
+      error_message => "$error",
+      request       => $consumer->last_request,
+      content_type  => $content_type,
+      response      => $consumer->last_response,
     );
   };
 
@@ -302,6 +302,46 @@ __END__
   At Shutterstock we love REST and we take it so seriously that we think our code should be RESTfully
   lazy. Now one can have a Moose model without needing to deal with all the marshaling details.
 
+=head1 Schema Definitions
+
+  When settting up a class the following are the supported parameters that L<MooseX::Role::REST::Consumer> will support.
+
+=head2 content_type
+
+  By default the content type is set to "application/json"
+
+=head2 header_exclude 
+
+  Acts as a filter, will exclude any header information.
+
+  header_exclude => {
+    post => 'X-Foo',
+  }
+
+=head2 resource_path
+
+  This is the path of the resource. IE:
+
+  /foo/bar/:id
+
+  The :id is a route parameter which would be overriden by the the "route_parameter" flag
+
+=head2 retry
+
+  This is an explicit retry. Even if the service timesout it will retry using this value.
+
+=head2 service_host
+
+  The hostname to the service
+
+=head2 service_port
+
+=head2 timeout
+
+head2 useragent_class
+
+  Experimental way of overriding REST::Consumers useragent. Right now it uses L<LWP::UserAgent>
+
 =head1 METHODS
 
 =head2 get( route_params => {...}, params => {...} )
@@ -328,13 +368,19 @@ __END__
 
   HTTP request headers. 
 
+=head2 content => ''
+
+  Passed into L<REST::Consumer>. This is the body content of a request.
+
 =head2 timeout => ''
 
   Timeout override per request
 
-=head1 LICENSE
+=head1 Response Object
 
- Copyright Shutterstock Inc (http://shutterstock.com).  All rights reserved.  This program is free software; you can redistribute it and/or modify it under the same terms as Perl itself
+  The response object is created and passed back whenever any of the supported HTTP methods are called. See L<MooseX::Role::REST::Consumer::Response>.
+
+=head2 
 
 =head1 SEE ALSO
 

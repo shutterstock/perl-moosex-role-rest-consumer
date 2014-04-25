@@ -5,13 +5,11 @@ use overload
   'bool' => sub { shift->is_success },
   '""'   => sub { shift->_stringify() };
 
-has 'tag_id'     => ( isa => 'Str',  is => 'ro', required => 0 );
-has 'text_en'    => ( isa => 'Str',  is => 'ro', required => 0 );
-has 'is_success' => ( isa => 'Bool', is => 'ro', required => 1 );
-has 'message'    => ( isa => 'Str',  is => 'ro', required => 0 );
-has 'data'       => (                is => 'ro', required => 0 );
-has 'request'    => ( is => 'ro' );
-has 'response'   => ( is => 'ro' );
+has 'is_success'    => ( isa => 'Bool', is => 'ro', required => 1 );
+has 'error_message' => ( isa => 'Str',  is => 'ro', required => 0 );
+has 'data'          => (                is => 'ro', required => 0 );
+has 'request'       => ( is => 'ro' );
+has 'response'      => ( is => 'ro' );
 
 sub success {
   my $class = shift;
@@ -31,8 +29,8 @@ sub is_failure {
 sub _stringify {
   my $self = shift;
 
-  if (defined $self->message) {
-    return $self->message;
+  if (defined $self->error_message) {
+    return $self->error_message;
   }
   return '';
 }
@@ -77,8 +75,6 @@ The B<Reponse> object in this class can be used in boolean or string context and
 
 =item B<message> - Optional text message
 
-=item B<text_en> & B<tag_id> - With these two components, enabled stringification to a translation tag and B<as_translation_tag>
-
 =back
 
 Returns blessed object
@@ -99,11 +95,7 @@ First, some basic L<Moose> attribute accessors:
 
 =item B<is_success>
 
-=item B<message>
-
-=item B<text_en>
-
-=item B<tag_id>
+=item B<error_message>
 
 =back
 

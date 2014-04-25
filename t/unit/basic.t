@@ -185,7 +185,7 @@ subtest "GET/POST request" => sub {
 };
 
 subtest "Testing a service exception" => sub {
-  plan tests => 4;
+  plan tests => 5;
 
   {
     package Foo::Test::Error;
@@ -197,7 +197,7 @@ subtest "Testing a service exception" => sub {
     };
   }
 
-  my $consumer_get_rs = resub 'REST::Consumer::get', sub { get_mock(); die "error"; };
+  my $consumer_get_rs = resub 'REST::Consumer::get' => sub { die "error"; };
 
   my ($obj, $get_req);
 
@@ -206,6 +206,7 @@ subtest "Testing a service exception" => sub {
   lives_ok { $get_req = $obj->get(path => 1) } "Calling get returns something";
 
   ok !$get_req->is_success, "the get was not successful";
+  like $get_req->error_message, qr/error/;
 
   cmp_deeply $consumer_get_rs->named_method_args, [
     {
@@ -309,7 +310,7 @@ subtest "Testing a service exception with timeout_retry set" => sub {
     };
   }
 
-  my $consumer_get_rs = resub 'REST::Consumer::get', sub { get_mock(); die "had a read timeout"; };
+  my $consumer_get_rs = resub 'REST::Consumer::get', sub { die "had a read timeout"; };
 
   my ($obj, $get_req);
 
