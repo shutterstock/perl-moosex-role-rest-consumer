@@ -297,13 +297,13 @@ __END__
    print $object->data->{something_that_came_back};
   }
 
-=head1 DESCRIPTION
+=head2 DESCRIPTION
 
   At Shutterstock we love REST and we take it so seriously that we think 
   our code should be RESTfully lazy. Now one can have a Moose model
   without needing to deal with all the marshaling details.
 
-=head2 Schema Definitions
+=head3 Schema Definitions
 
   When settting up a class the following are the supported
   parameters that L<MooseX::Role::REST::Consumer> will support.
@@ -344,7 +344,7 @@ __END__
 
   Experimental way of overriding REST::Consumers useragent. Right now it uses L<LWP::UserAgent>
 
-=head2 METHODS
+=head3 METHODS
 
 =item get( route_params => {...}, params => {...} )
 
@@ -360,7 +360,7 @@ __END__
 
   DELETE and PUT:delete(%params) and put(%params)
 
-=head2 Supported Parameters
+=head3 Supported Parameters
 
 =item route_params => {...}
 
@@ -384,7 +384,7 @@ __END__
 
   Timeout override per request
 
-=head2 Response Object
+=head3 Response Object
 
   The response object is created and passed back whenever
   any of the supported HTTP methods are called. 
