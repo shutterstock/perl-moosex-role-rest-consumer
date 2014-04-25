@@ -404,6 +404,8 @@ __END__
   any of the supported HTTP methods are called. 
   See L<MooseX::Role::REST::Consumer::Response>.
 
+=back
+
 =head2 
 
 =head1 SEE ALSO
