@@ -301,11 +301,11 @@ __END__
 
   At Shutterstock we love REST and we take it so seriously that we think 
   our code should be RESTfully lazy. Now one can have a Moose model
-  without needing to deal with all the marshaling details.
+  without needing to deal with all the marshalling details.
 
 =head3 Schema Definitions
 
-  When settting up a class the following are the supported
+  When setting up a class the following are the supported
   parameters that L<MooseX::Role::REST::Consumer> will support.
 
 =over
@@ -328,11 +328,13 @@ __END__
 
   /foo/bar/:id
 
-  The :id is a route parameter which would be overriden by the the "route_parameter" flag
+  The :id is a route parameter which will be filled in as specified by the
+  "route_params" hashref.
 
 =item retry
 
-  This is an explicit retry. Even if the service timesout it will retry using this value.
+  This is an explicit retry. Even if the service times out, it will retry
+  using this value.
 
 =item service_host
 
@@ -344,8 +346,8 @@ __END__
 
 =item useragent_class
 
-  Experimental way of overriding REST::Consumers useragent. Right now
-  it uses L<LWP::UserAgent>
+  Experimental way of overriding L<REST::Consumer>'s useragent. Right now
+  MooseX::REST::Consumer uses L<LWP::UserAgent>
 
 =back
 
@@ -365,7 +367,7 @@ __END__
 
 =item Other supported HTTP methods
 
-  DELETE and PUT:delete(%params) and put(%params)
+  DELETE and PUT: delete(%params) and put(%params)
 
 =back
 
@@ -375,17 +377,16 @@ __END__
 
 =item route_params => {...}
 
- Will be substituted via what is defined in the
- package route defition.
+ These will be substituted into the package route definition.
 
 =item params => {...}
 
- Passed into L<REST::Consumer> as a set of key value
+ Passed into L<REST::Consumer> as a set of key/value
  query parameters.
 
 =item headers => {...}
 
-  HTTP request headers. 
+  Any extra HTTP request headers to send. 
 
 =item content => ''
 
@@ -393,7 +394,26 @@ __END__
 
 =item timeout => ''
 
-  Timeout override per request
+  Timeout override per request.
+  
+  Note that the 'timeout' is subject to interpretation
+  by your underlying UserAgent class.  For example,
+  LWP::UserAgent treats the timeout as being
+  C<per-request>. This means that if you specify a timeout
+  of 5 seconds and issue a request using LWP::UserAgent,
+  each request that the UserAgent makes to fulfill your
+  request will have its own timeout of 5 seconds.
+  
+  This becomes important if the API that you are talking to
+  starts giving you 3xx redirects: while you might expect a
+  timeout to occur within 5 seconds, the API might instruct
+  your UserAgent to make a few subsequent requests, and each
+  one will have your initial timeout applied to it.
+  
+  Different UserAgent classes implement timeouts
+  differently. L<LWP::UserAgent::Paranoid>, for example,
+  has a global timeout value, where all requests must be
+  fulfilled within C<timeout> clock seconds.
 
 =back
 
@@ -413,13 +433,15 @@ __END__
 
 L<REST::Consumer>, L<MooseX::Role::Parameterized>, L<Moose>
 
-=head2 AUTHOR
+=head2 AUTHORS
 
-Webstack Team at Shutterstock (Belden Lyman, Nikolay Martynov, Vishal Kajjam, and Logan Bell)
+  The Shutterstock Webstack Team and alumni (Logan Bell,
+  Jon Hogue, Vishal Kajjam, Belden Lyman, Nikolay Martynov, and
+  Kurt Starsinic).
 
 =head2  COPYRIGHT AND LICENSE
 
- This software is copyright (c) 2014 by Shutterstock Inc..
+ This software is copyright (c) 2014 by Shutterstock Inc.
 
  This is free software; you can redistribute it and/or modify it under
  the same terms as the Perl 5 programming language system itself.
