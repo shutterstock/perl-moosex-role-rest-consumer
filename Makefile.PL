@@ -26,5 +26,5 @@ WriteMakefile(
         'WWW::Curl::UserAgent'        => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean               => { FILES => 'FooDance-*' },
+    clean               => { FILES => 'MooseX-Role-REST-Consumer-*' },
 );
