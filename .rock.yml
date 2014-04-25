@@ -1,5 +1,7 @@
 runtime: perl516
 
+test: exec rock test_unit
+
 prove: |
   if [[ -n "${ROCK_ARGS}" ]]; then
     TEST_AUTHOR=1 exec prove ${PERL_TEST_INC} -r -l -v ${ROCK_ARGS}
@@ -7,3 +9,9 @@ prove: |
     TEST_AUTHOR=1 exec prove ${PERL_TEST_INC} -r -l -v t
   fi
 
+test_unit: |
+  if [[ -n "${ROCK_ARGS}" ]]; then
+    exec prove -l -It/lib t/unit/*_${ROCK_ARGS}.t
+  else
+    exec prove -l -It/lib t/unit
+  fi

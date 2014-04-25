@@ -31,3 +31,5 @@ TAGS
 .#*
 build.log
 logs/
+MooseX-Role-REST-Consumer*
+MYMETA.json

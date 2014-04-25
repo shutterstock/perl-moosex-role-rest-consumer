@@ -1,6 +1,7 @@
-se strict;
+use strict;
 use warnings;
 use ExtUtils::MakeMaker;
+use ExtUtils::MakeMaker::CPANfile;
 
 # Normalize version strings like 6.30_02 to 6.3002,
 # so that we can do numerical comparisons on it.
@@ -10,8 +11,8 @@ $eumm_version =~ s/_//;
 WriteMakefile(
     NAME                => 'MooseX-Role-REST-Consumer',
     AUTHOR              => q{Shutterstock Webstack Team},
-    VERSION_FROM        => 'lib/MooseX/Role/Rest/Consumer.pm',
-    ABSTRACT            => 'Tak a REST inside Moose',
+    VERSION_FROM        => 'lib/MooseX/Role/REST/Consumer.pm',
+    ABSTRACT            => 'Take a REST inside Moose',
     ($eumm_version >= 6.3001
       ? ('LICENSE'=> 'perl')
       : ()),
