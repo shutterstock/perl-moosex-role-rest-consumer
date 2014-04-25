@@ -303,16 +303,16 @@ __END__
   our code should be RESTfully lazy. Now one can have a Moose model
   without needing to deal with all the marshaling details.
 
-=head1 Schema Definitions
+=head2 Schema Definitions
 
   When settting up a class the following are the supported
   parameters that L<MooseX::Role::REST::Consumer> will support.
 
-=head2 content_type
+=item content_type
 
   By default the content type is set to "application/json"
 
-=head2 header_exclude 
+=item header_exclude 
 
   Acts as a filter, will exclude any header information.
 
@@ -320,7 +320,7 @@ __END__
     post => 'X-Foo',
   }
 
-=head2 resource_path
+=item resource_path
 
   This is the path of the resource. IE:
 
@@ -328,63 +328,63 @@ __END__
 
   The :id is a route parameter which would be overriden by the the "route_parameter" flag
 
-=head2 retry
+=item retry
 
   This is an explicit retry. Even if the service timesout it will retry using this value.
 
-=head2 service_host
+=item service_host
 
   The hostname to the service
 
-=head2 service_port
+=item service_port
 
-=head2 timeout
+=item timeout
 
-head2 useragent_class
+=item useragent_class
 
   Experimental way of overriding REST::Consumers useragent. Right now it uses L<LWP::UserAgent>
 
-=head1 METHODS
+=head2 METHODS
 
-=head2 get( route_params => {...}, params => {...} )
+=item get( route_params => {...}, params => {...} )
 
  Will use REST::Consumer::get to lookup a resource by
  supplied resource_path and substitution of route_params
 
-=head2 post( route_params => {...}, content => '...' )
+=item post( route_params => {...}, content => '...' )
 
  Will perform a POST request with REST::Consumer::post.
  The data will the Content-Type of application/json by default.
 
-=head2 Other supported HTTP methods
+=item Other supported HTTP methods
 
   DELETE and PUT:delete(%params) and put(%params)
 
-=head1 Supported Parameters
+=head2 Supported Parameters
 
-=head2 route_params => {...}
+=item route_params => {...}
 
  Will be substituted via what is defined in the
  package route defition.
 
-=head2 params => {...}
+=item params => {...}
 
  Passed into L<REST::Consumer> as a set of key value
  query parameters.
 
-=head2 headers => {...}
+=item headers => {...}
 
   HTTP request headers. 
 
-=head2 content => ''
+=item content => ''
 
   Passed into L<REST::Consumer>. This is the body content of a request.
 
-=head2 timeout => ''
+=item timeout => ''
 
   Timeout override per request
 
-=head1 Response Object
+=head2 Response Object
 
   The response object is created and passed back whenever
   any of the supported HTTP methods are called. 
@@ -396,11 +396,11 @@ head2 useragent_class
 
 L<REST::Consumer>, L<MooseX::Role::Parameterized>, L<Moose>
 
-=head1 AUTHOR
+=head2 AUTHOR
 
 Webstack Team at Shutterstock (Belden Lyman, Nikolay Martynov, Vishal Kajjam, and Logan Bell)
 
-=head1 COPYRIGHT AND LICENSE
+=head2  COPYRIGHT AND LICENSE
 
  This software is copyright (c) 2014 by Shutterstock Inc..
 
