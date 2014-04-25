@@ -308,6 +308,8 @@ __END__
   When settting up a class the following are the supported
   parameters that L<MooseX::Role::REST::Consumer> will support.
 
+=over
+
 =item content_type
 
   By default the content type is set to "application/json"
@@ -344,7 +346,11 @@ __END__
 
   Experimental way of overriding REST::Consumers useragent. Right now it uses L<LWP::UserAgent>
 
+=back
+
 =head3 METHODS
+
+=over
 
 =item get( route_params => {...}, params => {...} )
 
@@ -360,7 +366,11 @@ __END__
 
   DELETE and PUT:delete(%params) and put(%params)
 
+=back
+
 =head3 Supported Parameters
+
+=over
 
 =item route_params => {...}
 
@@ -384,7 +394,11 @@ __END__
 
   Timeout override per request
 
+=back
+
 =head3 Response Object
+
+=over
 
   The response object is created and passed back whenever
   any of the supported HTTP methods are called. 
