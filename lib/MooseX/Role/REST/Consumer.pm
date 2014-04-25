@@ -288,7 +288,7 @@ __END__
   use Moose;
   with 'MooseX::Role::REST::Consumer' => {
     service_host => 'somewhere.over.the.rainbow',
-    resource_path => '/path/to/my/resource/:id'
+    resource_path => '/path/to/my/resource/:id',
   };
 
   my $object = Foo->get(route_params => {id => 1});
@@ -303,10 +303,18 @@ __END__
   our code should be RESTfully lazy. Now one can have a Moose model
   without needing to deal with all the marshalling details.
 
-=head3 Schema Definitions
+=head3 Schema Definitions/Configuration
 
   When setting up a class the following are the supported
   parameters that L<MooseX::Role::REST::Consumer> will support.
+
+  For example a typical configuration would looke like the following:
+
+  with 'MooseX::Role::REST::Consumer' => {
+    service_host  => 'host.name',
+    resource_path => '/path/to/my/resource/:id'
+    timeout       => 10,
+  };
 
 =over
 
@@ -334,7 +342,7 @@ __END__
 =item retry
 
   This is an explicit retry. Even if the service times out, it will retry
-  using this value.
+  using this value. This retry is different than what L<REST::Consumer> offers.
 
 =item service_host
 
@@ -342,7 +350,11 @@ __END__
 
 =item service_port
 
+  The port for the hostname.
+
 =item timeout
+
+  Configuration level timeout. This is global on each request.
 
 =item useragent_class
 
@@ -371,7 +383,7 @@ __END__
 
 =back
 
-=head3 Supported Parameters
+=head3 Supported Method Parameters
 
 =over
 
