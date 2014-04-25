@@ -299,12 +299,14 @@ __END__
 
 =head1 DESCRIPTION
 
-  At Shutterstock we love REST and we take it so seriously that we think our code should be RESTfully
-  lazy. Now one can have a Moose model without needing to deal with all the marshaling details.
+  At Shutterstock we love REST and we take it so seriously that we think 
+  our code should be RESTfully lazy. Now one can have a Moose model
+  without needing to deal with all the marshaling details.
 
 =head1 Schema Definitions
 
-  When settting up a class the following are the supported parameters that L<MooseX::Role::REST::Consumer> will support.
+  When settting up a class the following are the supported
+  parameters that L<MooseX::Role::REST::Consumer> will support.
 
 =head2 content_type
 
@@ -346,23 +348,29 @@ head2 useragent_class
 
 =head2 get( route_params => {...}, params => {...} )
 
- Will use REST::Consumer::get to lookup a resource by supplied resource_path and substitution of route_params
+ Will use REST::Consumer::get to lookup a resource by
+ supplied resource_path and substitution of route_params
 
 =head2 post( route_params => {...}, content => '...' )
 
- Will perform a POST request with REST::Consumer::post. The data will the Content-Type of application/json by default.
+ Will perform a POST request with REST::Consumer::post.
+ The data will the Content-Type of application/json by default.
 
-=head2 Other supported HTTP methods: DELETE and PUT: delete(%params) and put(%params)
+=head2 Other supported HTTP methods
+
+  DELETE and PUT:delete(%params) and put(%params)
 
 =head1 Supported Parameters
 
 =head2 route_params => {...}
 
- Will be substituted via what is defined in the package route defition.
+ Will be substituted via what is defined in the
+ package route defition.
 
 =head2 params => {...}
 
- Passed into L<REST::Consumer> as a set of key value query parameters.
+ Passed into L<REST::Consumer> as a set of key value
+ query parameters.
 
 =head2 headers => {...}
 
@@ -378,7 +386,9 @@ head2 useragent_class
 
 =head1 Response Object
 
-  The response object is created and passed back whenever any of the supported HTTP methods are called. See L<MooseX::Role::REST::Consumer::Response>.
+  The response object is created and passed back whenever
+  any of the supported HTTP methods are called. 
+  See L<MooseX::Role::REST::Consumer::Response>.
 
 =head2 
 
