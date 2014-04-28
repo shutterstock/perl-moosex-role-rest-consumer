@@ -112,6 +112,9 @@ role {
     );
 
     $content_type = delete $request_headers{'Content-Type'};
+    if ($params{access_token}) {
+      $request_headers{Authorization} = 'Bearer ' . $params{access_token};
+    }
 
     my %query_params = $class->query_params(
       params               => $params{params},
@@ -220,7 +223,7 @@ role {
         push(@path, $params_path);
       }
     }
-    my $path = File::Spec->catfile(@path) . ( $resource_path =~ m{[^/]+/$} ? '/' : '');
+    my $path = File::Spec->catfile(@path) . ( $resource_path && $resource_path =~ m{[^/]+/$} ? '/' : '');
     #We support two ways of substituting params here:
     # /:param/ - name has to have '/' or end of string after it
     # /has_:{param}_value - surround param name with '{}'

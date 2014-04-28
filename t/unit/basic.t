@@ -365,10 +365,14 @@ subtest "We should be able to set custom headers" => sub {
       "Creating a class that implments MX::R::REST::Consumer lives!";
 
   lives_ok {
-    $get_req = $obj->get(path => 1, headers => {
-      'X-Foo-Bar' => 'Random header 1',
-      'X-Baz-Jazz' => 'Random header 2'
-     });
+    $get_req = $obj->get(
+        path => 1,
+        headers => {
+          'X-Foo-Bar' => 'Random header 1',
+          'X-Baz-Jazz' => 'Random header 2'
+        }, 
+        access_token => "meshuggaas-saccated",        
+    );
   } "Calling get returns something";
 
   cmp_deeply($consumer_get_rs->named_method_args, [{
@@ -377,8 +381,10 @@ subtest "We should be able to set custom headers" => sub {
       'X-Baz-Jazz',
       'Random header 2',
       'X-Foo-Bar',
-      'Random header 1'
-     ],
+      'Random header 1',
+      'Authorization',
+      'Bearer meshuggaas-saccated',
+    ],
     content_type => 'application/json',
     params => {},
     content => undef
