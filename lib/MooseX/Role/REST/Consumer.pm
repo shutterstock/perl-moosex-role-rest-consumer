@@ -220,7 +220,7 @@ role {
         push(@path, $params_path);
       }
     }
-    my $path = File::Spec->catfile(@path) . ( $resource_path =~ m{/$} ? '/' : '');
+    my $path = File::Spec->catfile(@path) . ( $resource_path =~ m{[^/]+/$} ? '/' : '');
     #We support two ways of substituting params here:
     # /:param/ - name has to have '/' or end of string after it
     # /has_:{param}_value - surround param name with '{}'
