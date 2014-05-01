@@ -146,6 +146,7 @@ role {
     #);
 
     my $consumer = $class->consumer; #we want same instance throughout the whole process
+    $consumer->host(delete $params{host}) if $params{host};
 
     if (my $timeout_override = delete $params{timeout} ) {
       $consumer->timeout($timeout_override);
@@ -166,6 +167,7 @@ role {
    }
 
     $consumer->timeout($timeout);
+    $consumer->host($service_host);
 
     #$logger->finish($log_entry, {
     #  type      => $method,

@@ -391,8 +391,8 @@ subtest "We should be able to set custom headers" => sub {
    }], "we called the service with custom headers");
 };
 
-subtest "overriding a timeout" => sub {
-  plan tests => 5;
+subtest "overriding a timeout/host" => sub {
+  plan tests => 8;
   {
     package OverrideTimeout;
     use Moose;
@@ -403,15 +403,16 @@ subtest "overriding a timeout" => sub {
     };
   }
 
-  my $consumer_get_rs = resub 'REST::Consumer::get' => sub {};
-  my $consumer_timout_wt = wiretap 'REST::Consumer::timeout' => sub {};
+  my $consumer_get_rs = resub 'REST::Consumer::get';
+  my $consumer_timout_wt = wiretap 'REST::Consumer::timeout';
+  my $consumer_host_wt = wiretap 'REST::Consumer::host';
 
   my ($obj, $get_req);
   lives_ok { $obj = OverrideTimeout->new }
       "Creating a class that implments MX::R::REST::Consumer lives!";
 
   lives_ok {
-    $get_req = $obj->get(timeout => 1);
+    $get_req = $obj->get(timeout => 1, host => 'http://bar.com');
   } "Calling get returns something";
 
   cmp_deeply($consumer_get_rs->named_method_args, [{
@@ -423,5 +424,8 @@ subtest "overriding a timeout" => sub {
    }], "we called the service with custom headers");
 
   is $obj->consumer->timeout, 20;
+  is $obj->consumer->host, 'http://foo.com';
   is($consumer_timout_wt->method_args->[1][0],1);
+  is($consumer_host_wt->method_args->[0][0],'http://bar.com');
+  is($consumer_host_wt->method_args->[1][0],'http://foo.com');
 };
