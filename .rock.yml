@@ -15,3 +15,8 @@ test_unit: |
   else
     exec prove -l -It/lib t/unit
   fi
+
+env:
+  PERL_CARTON_MIRROR: "http://cpan.shuttercorp.net"
+  PERL_CPAN_MIRROR: "http://cpan.shuttercorp.net"
+  PERL_CPANM_MIRROR: "http://cpan.shuttercorp.net"

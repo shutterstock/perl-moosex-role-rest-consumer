@@ -26,6 +26,13 @@ WriteMakefile(
         'Test::Easy'                  => 0,
         'WWW::Curl::UserAgent'        => 0,
     },
+    META_MERGE => {
+        resources => {
+            bugtracker => 'https://github.com/shutterstock/perl-moosex-role-rest-consumer/issues',
+            homepage   => 'https://github.com/shutterstock/perl-moosex-role-rest-consumer',
+            repository => 'https://github.com/shutterstock/perl-moosex-role-rest-consumer.git',
+        },
+    },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'MooseX-Role-REST-Consumer-*' },
 );
