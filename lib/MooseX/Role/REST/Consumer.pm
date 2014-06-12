@@ -157,8 +157,8 @@ role {
       my $is_success;
       try {
         $try++;
-        $data          = $consumer->$method(%request);
-        $is_success    = 1;
+        $data       = $consumer->$method(%request);
+        $is_success = 1;
       } catch {
         $error = $_;
         $timeout_error++ if $error =~ /read timeout/;
