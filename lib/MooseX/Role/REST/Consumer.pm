@@ -11,7 +11,7 @@ use Try::Tiny;
 use URI::Escape;
 use Module::Load;
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 my @HTTP_METHODS = qw(get put post delete);
 
