@@ -246,12 +246,12 @@ subtest "We should be able to set custom headers" => sub {
 
   cmp_deeply($consumer_get_rs->named_method_args, [{
     path => '/sessions/1',
-    headers => [
+    headers => bag(
       'X-Baz-Jazz',
       'Random header 2',
       'X-Foo-Bar',
       'Random header 1'
-     ],
+    ),
     content_type => 'application/json',
     params => {},
     content => undef
@@ -377,14 +377,14 @@ subtest "We should be able to set custom headers" => sub {
 
   cmp_deeply($consumer_get_rs->named_method_args, [{
     path => '/sessions/1',
-    headers => [
+    headers => bag(
       'X-Baz-Jazz',
       'Random header 2',
       'X-Foo-Bar',
       'Random header 1',
       'Authorization',
       'Bearer meshuggaas-saccated',
-    ],
+    ),
     content_type => 'application/json',
     params => {},
     content => undef
