@@ -458,7 +458,7 @@ L<REST::Consumer>, L<MooseX::Role::Parameterized>, L<Moose>
 
 =head2  COPYRIGHT AND LICENSE
 
- This software is copyright (c) 2014 by Shutterstock Inc.
+ This software is copyright (c) 2014-2017 by Shutterstock Images, LLC.
 
  This is free software; you can redistribute it and/or modify it under
  the same terms as the Perl 5 programming language system itself.
